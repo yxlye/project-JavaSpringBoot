@@ -25,46 +25,56 @@ public class ConcertController {
     @Autowired
     ConcertService concertService;
 
-    List<ConcertEntity> concertList;
-    ConcertEntity selectedConcert;
-
     @RequestMapping(method = RequestMethod.GET)
-    public ResponseEntity<?> findAllAvailable() {
-        concertList = (List<ConcertEntity>) concertService.find("upcoming", "");
-        return new ResponseEntity<List<ConcertEntity>>(concertList, HttpStatus.OK);
+    public ResponseEntity<List<ConcertEntity>> findAllAvailable() {
+
+        return new ResponseEntity<List<ConcertEntity>>(
+                concertService.find("upcoming", ""),
+                HttpStatus.OK);
     }
 
     @RequestMapping(value = "/history", method = RequestMethod.GET)
-    public ResponseEntity<?> findAll() {
-        concertList = concertService.find("history", "");
-        return new ResponseEntity<List<ConcertEntity>>(concertList, HttpStatus.OK);
+    public ResponseEntity<List<ConcertEntity>> findAll() {
+
+        return new ResponseEntity<List<ConcertEntity>>(
+                concertService.find("history", ""),
+                HttpStatus.OK);
     }
 
     @RequestMapping(value = "/search", method = RequestMethod.GET)
-    public ResponseEntity<?> search(@RequestParam String artist) {
+    public ResponseEntity<List<ConcertEntity>> search(@RequestParam String artist) {
 
-        concertList = concertService.find("artist", artist.toUpperCase());
-        return new ResponseEntity<List<ConcertEntity>>(concertList, HttpStatus.OK);
+        return new ResponseEntity<List<ConcertEntity>>(
+                concertService.find("artist", artist.toUpperCase()),
+                HttpStatus.OK);
     }
 
     @RequestMapping(value = "/search/{concertId}", method = RequestMethod.GET)
-    public ResponseEntity<?> findById(@PathVariable int concertId) {
-        selectedConcert = concertService.findbyConcertId(concertId);
-        return new ResponseEntity<ConcertEntity>(selectedConcert, HttpStatus.OK);
+    public ResponseEntity<ConcertEntity> findById(@PathVariable int concertId) {
+
+        return new ResponseEntity<ConcertEntity>(
+                concertService.findbyConcertId(concertId),
+                HttpStatus.OK);
     }
 
     @RequestMapping(value = "/edit", method = RequestMethod.POST)
-    public ResponseEntity<?> create(@RequestHeader("token") String token, @RequestHeader("user-id") int userId,
+    public ResponseEntity<ConcertEntity> create(
+            @RequestHeader("token") String token,
+            @RequestHeader("user-id") int userId,
             @RequestBody ConcertEntity concert) {
-        selectedConcert = concertService.create(token, userId, concert);
-        return new ResponseEntity<ConcertEntity>(selectedConcert, HttpStatus.CREATED);
+
+        return new ResponseEntity<ConcertEntity>(concertService.create(token, userId, concert), HttpStatus.CREATED);
     }
 
     @RequestMapping(value = "/edit/{concertId}", method = RequestMethod.PUT)
-    public ResponseEntity<?> update(@RequestHeader("user-id") int userId, @RequestBody ConcertEntity concert,
+    public ResponseEntity<ConcertEntity> update(
+            @RequestHeader("user-id") int userId,
+            @RequestBody ConcertEntity concert,
             @PathVariable int concertId) {
-        selectedConcert = concertService.update(userId, concert, concertId);
-        return new ResponseEntity<ConcertEntity>(selectedConcert, HttpStatus.OK);
+
+        return new ResponseEntity<ConcertEntity>(
+                concertService.update(userId, concert, concertId),
+                HttpStatus.OK);
     }
 
 }

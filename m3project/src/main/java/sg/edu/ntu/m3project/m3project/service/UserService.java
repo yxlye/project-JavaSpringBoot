@@ -36,11 +36,12 @@ public class UserService {
     BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder(10, bCryptSR);
 
     // yongxin
+    // Generate jwttoken for user that is logging in
     public Map<String, String> generateToken(UserEntity user) {
         String jwtToken = Jwts.builder()
                 .setSubject(user.getId().toString())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 864000000)) // 10 days
+                .setExpiration(new Date(System.currentTimeMillis() + 864000000)) // expiration of 10 days
                 .signWith(SignatureAlgorithm.HS256, secret)
                 .compact();
         Map<String, String> jwtTokenGen = new HashMap<>();
@@ -50,6 +51,7 @@ public class UserService {
     }
 
     // yongxin
+    // Check if token in request header is valid (it belongs to an id)
     public String checkToken(String token, Integer userId) throws AccessDeniedException {
         String id = Jwts.parser()
                 .setSigningKey(secret)
@@ -66,12 +68,14 @@ public class UserService {
     }
 
     // yongxin
+    // Hash the password that is to be saved in the database
     public UserEntity hashPassword(UserEntity user) {
         String hashPassword = bCryptPasswordEncoder.encode(user.getPassword());
         user.setPassword(hashPassword);
         return user;
     }
 
+    // Check if the user is an Admin
     public void checkAdmin(int userId) {
         UserEntity user = userRepo.findById(userId).get();
         if (!user.isAdminStatus()) {
@@ -81,99 +85,83 @@ public class UserService {
 
     // phoebe
     public ResponseEntity<?> findAll() {
-        try {
-            List<UserEntity> users = (List<UserEntity>) userRepo.findAll();
-            return ResponseEntity.ok().body(users);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseMessage("Something went wrong. Please try again later."));
-        }
+
+        List<UserEntity> users = (List<UserEntity>) userRepo.findAll();
+        return ResponseEntity.ok().body(users);
+
     }
 
     // phoebe
     public ResponseEntity<?> findById(int id) {
-        try {
-            Optional<UserEntity> userByID = userRepo.findById(id);
-            if (userByID.isPresent()) {
-                UserEntity user = userByID.get();
-                return ResponseEntity.ok().body(user);
-            }
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseMessage("User " + id + " not found. Please try a different User ID."));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseMessage("Something went wrong. Please try again later."));
+        Optional<UserEntity> userByID = userRepo.findById(id);
+        if (userByID.isPresent()) {
+            UserEntity user = userByID.get();
+            return ResponseEntity.ok().body(user);
         }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ResponseMessage("User " + id + " not found. Please try a different User ID."));
+
     }
 
     // phoebe
     public ResponseEntity<?> update(int id, UserEntity user, int userID) {
-        try {
-            Optional<UserEntity> userToBeUpdated = userRepo.findById(id);
-            if (userToBeUpdated.isPresent()) {
-                UserEntity editedUser = userToBeUpdated.get();
+        Optional<UserEntity> userToBeUpdated = userRepo.findById(id);
+        if (userToBeUpdated.isPresent()) {
+            UserEntity editedUser = userToBeUpdated.get();
 
-                // check if userInHeader exists
-                Optional<UserEntity> userInHeader = userRepo.findById(userID);
-                if (userInHeader.isPresent()) {
-                    UserEntity headerUser = userInHeader.get();
+            // check if userInHeader exists
+            Optional<UserEntity> userInHeader = userRepo.findById(userID);
+            if (userInHeader.isPresent()) {
+                UserEntity headerUser = userInHeader.get();
 
-                    // check if match - editedUser.getId() == userID
-                    // check if admin - headerUser.isAdminStatus()
-                    if (userID == editedUser.getId() || headerUser.isAdminStatus()) {
-                        Timestamp updatedAt = new Timestamp(new Date().getTime());
-                        editedUser.setName(user.getName());
-                        editedUser.setPhone(user.getPhone());
-                        editedUser.setEmail(user.getEmail());
-                        editedUser.setPassword(user.getPassword() != null ? hashPassword(user).getPassword() : null);
-                        /* editedUser.setAdminStatus(user.isAdminStatus()); */
-                        editedUser.setUpdatedAt(updatedAt);
-                        editedUser = userRepo.save(editedUser);
-                        return ResponseEntity.ok().body(editedUser);
-                    }
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(new ResponseMessage("Sorry, you are not allowed to update this user."));
+                // check if match - editedUser.getId() == userID
+                // check if admin - headerUser.isAdminStatus()
+                if (userID == editedUser.getId() || headerUser.isAdminStatus()) {
+                    Timestamp updatedAt = new Timestamp(new Date().getTime());
+                    editedUser.setName(user.getName());
+                    editedUser.setPhone(user.getPhone());
+                    editedUser.setEmail(user.getEmail());
+                    editedUser.setPassword(user.getPassword() != null ? hashPassword(user).getPassword() : null);
+                    /* editedUser.setAdminStatus(user.isAdminStatus()); */
+                    editedUser.setUpdatedAt(updatedAt);
+                    editedUser = userRepo.save(editedUser);
+                    return ResponseEntity.ok().body(editedUser);
                 }
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ResponseMessage("Invalid credentials."));
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ResponseMessage("Sorry, you are not allowed to update this user."));
             }
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseMessage("User " + id + " not found. Please try a different User ID."));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseMessage("Something went wrong. Please try again later."));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ResponseMessage("Invalid credentials."));
         }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ResponseMessage("User " + id + " not found. Please try a different User ID."));
     }
 
     // phoebe
     public ResponseEntity<?> create(UserEntity user) {
-        try {
-            if (user.getEmail() == null || user.getPassword() == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new ResponseMessage("Email and/or password cannot be empty."));
-            }
-            if (userRepo.existsByEmail(user.getEmail())) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new ResponseMessage("Sorry, a user with this email already exists."));
-            }
-            UserEntity createNewUser = userRepo.save(hashPassword(user));
-            return new ResponseEntity<>(userRepo.findById(createNewUser.getId()), HttpStatus.CREATED);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseMessage("Something went wrong. Please try again later."));
+        if (user.getEmail() == null || user.getPassword() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseMessage("Email and/or password cannot be empty."));
         }
+        if (userRepo.existsByEmail(user.getEmail())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseMessage("Sorry, a user with this email already exists."));
+        }
+        UserEntity createNewUser = userRepo.save(hashPassword(user));
+        return new ResponseEntity<>(userRepo.findById(createNewUser.getId()), HttpStatus.CREATED);
     }
 
     // yongxin
+    // Authenticate user
     public UserEntity getUserForAuth(String email, String password) throws AccessDeniedException {
         Optional<UserEntity> optionalUser = userRepo.findByEmail(email);
+
+        // Check that user is valid
         if (!optionalUser.isPresent()) {
             throw new AccessDeniedException("User account not found, please try a different email.");
         }
+
+        // Check that password matches the hashed on in the database
         UserEntity foundUser = optionalUser.get();
         if (!bCryptPasswordEncoder.matches(password, foundUser.getPassword())) {
             throw new AccessDeniedException("Incorrect password for '" + email + "'. Please try again.");
@@ -182,6 +170,8 @@ public class UserService {
     }
 
     // yongxin
+    // Check that user email and password are valid
+    // Shares jwtToken to be saved by the frontend for future requests requiring it
     public ResponseEntity<?> login(UserEntity user) {
         try {
             if (user.getEmail() == null || user.getPassword() == null) {
